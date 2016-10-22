@@ -1,12 +1,13 @@
 #pragma once
 #include <iostream>
 #include <utility>
+#include <vector>
 using namespace std;
 
 template<typename T>
 struct compare
 {
-	int operator(const T&a, const T& b)
+	int operator()(const T&a, const T& b)
 	{
 		return a - b;
 	}
@@ -17,7 +18,7 @@ struct compare
 
 
 
-template<typename K, typename T>
+template<typename K, typename T = int>
 struct BStreeNode
 {
 	typedef BStreeNode Node;
@@ -30,20 +31,27 @@ struct BStreeNode
 
 	}
 
+	const Node& operator=(const Node &a)
+	{
+		_value = a._value;
+		return *this;
+	}
+
 	Node *_left;
 	Node *_right;
 
-	K _key;
+	const K _key;
 	T _value;
 };
 
 
-template<class K, class T, typename compare = compare<T>>
+template<class K, class T = int, typename compare = compare<T>>
 class BStree
 {
 public:
 	typedef BStreeNode<K, T> Node;
 	typedef BStree<K, T, compare> tree;
+
 
 	tree()
 		:_root(NULL)
@@ -60,12 +68,12 @@ public:
 		else
 		{
 		
-			pair<Node*, Node*> A = find(key);
+			pair<Node*, Node*> A = find(key,0);
 			Node *father = A.second;
 			if (NULL == father)
 				return false;
 			Node *p = new Node(key, value);
-			if (_com(key, father->_key))
+			if (compare()(key, father->_key) > 0)
 				father->_right = p;
 			else father->_left = p;
 		}
@@ -75,77 +83,201 @@ public:
 
 	bool erase(const K key)
 	{
-		pair<Node *, Node *> A = find(key);
-
+		pair<Node *, Node *> A = find(key, 0);
 		Node *cur = A.first;
+		Node *ancestor = A.second;
 		if (NULL == cur)
 			return false;
 
-		cur = cur->_right;
-		Node *father = A.second;
-		if (cur)
+		Node *tmp = NULL;
+		if (NULL == cur->_left || NULL == cur->_right)
 		{
-			if (father->_left == cur)
-			{
-				father->_left = cur->_left;
-			}
-			else father->_right = cur->_right;
+			if (NULL == cur->_left)
+				tmp = cur->_right;
+			else tmp = cur->_left;
 		}
-
 		else
 		{
-			Node *pather = NULL;
-			while (NULL != cur->left)
+			tmp = cur->_right;
+			Node *father = cur;
+			while (tmp->_left != NULL)
 			{
-				pather = cur;
-				cur = cur->_left;
+				father = tmp;
+				tmp = tmp->_left;
 			}
-			(A.first)->_value = cur->_value;
-			erase(pather, cur);
+
+			if (father->_left == tmp)
+				father->_left = tmp->_right;
+			else father->_right = tmp->_right;
+
+			tmp->_left = cur->_left;
+			tmp->_right = cur->_right;
+
 		}
-		return true;
+		if (NULL != ancestor)
+		{
+			if (cur == ancestor->_left)
+				ancestor->_left = tmp;
+			else ancestor->_right = tmp;
+		}
+		else _root = tmp;
+	
+
+		delete cur;
+		
 	}
 
-
-protected:
-	void erase(Node *father, Node *child)
+	Node *find(const K key)
 	{
-		if (father->_right == child)
-		{
-			father->_right = child->_right;
-		}
-
-		if (father->_left == child)
-		{
-			fater->left = child->_right;
-		}
-
-		delete child;
+		Node *tmp = (find(key, 0)).first;
+		return tmp;
 	}
 
-	pair<Node*, Node*> find(const K key)
+	void middle_display()
+	{
+		middle_display(_root);
+	}
+
+
+	bool insertn(const K key, const T value = T())
+	{
+		return insertn(_root, key, value);
+	}
+
+	bool erasen(const K key)
+	{
+		return erasen(_root, key);
+	}
+
+	T& findn(const K key)
+	{
+		Node *p = findn(_root, key);
+		return p->_value;
+	}
+protected:
+
+	pair<Node*, Node*> find(const K key, int)
 	{
 		Node *cur = _root;
 		Node *father = NULL;
 
 		while (NULL != cur)
 		{
-			father = cur;
+			
 			if (compare()(key, cur->_key) > 0)
 			{
+				father = cur;
 				cur = cur->_right;
 			}
 			else if (compare()(key, cur->_key) < 0)
 			{
+				father = cur;
 				cur = cur->_left;
 			}
-			else return make_pair(NULL, NULL);
+			else
+			{
+				return make_pair(cur, father);
+			}
+			
 		}
 
 		return make_pair(cur, father);
 
 	}
 
+	void middle_display( Node *root)
+	{
+		if (NULL == root)
+		{
+			return;
+		}
+
+		middle_display(root->_left);
+		cout << root->_key << ends;
+		middle_display(root->_right);
+
+	}
+
+
+	bool insertn(Node *&root, const K& key, const T& value)
+	{
+		if (NULL == root)
+		{
+			Node *p = new Node(key, value);
+			root = p;
+			return true;
+		}
+
+		if (root->_key == key)
+		{
+			return false;
+		}
+
+		else if (com(key, root->_key) < 0)
+			insertn(root->_left, key, value);
+		else insertn(root->_right, key, value);
+	}
+
+	bool erasen(Node *&root, const K& key)
+	{
+		if (NULL == root)
+			return false;
+		int flag = com(root->_key, key);
+		if (flag > 0)
+			erasen(root->_left, key);
+		else if (flag < 0)
+			erasen(root->_right, key);
+		else
+		{
+			Node *del = root;
+			if (NULL == del->_left || NULL == del->_right)
+			{
+				if (NULL == del->_left)
+					root = del->_right;
+				else root = del->_left;
+			}
+			else
+			{
+				Node *tmp = root->_right;
+				Node *father = root;
+				while (tmp->_left != NULL)
+				{
+					father = tmp;
+					tmp = tmp->_right;
+				}
+
+				if (tmp == father->_left)
+					father->_left = tmp->_right;
+				else father->_right = tmp->_right;
+
+				tmp->_left = del->_left;
+				tmp->_right = del->_right;
+				root = tmp;
+			}
+
+			
+			delete del;
+
+		}
+
+	}
+
+	Node* findn(Node *root, const K& key)
+	{
+		if (NULL == root)
+			return NULL;
+
+		int flag = com(root->_key, key);
+
+		if (flag > 0)
+			findn(root->_left, key);
+		else if (flag < 0)
+			finn(root->_right, key);
+		else return root;
+	}
+
+
 private:
 	Node *_root;
+	compare com;
 };
